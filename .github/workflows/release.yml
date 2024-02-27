@@ -26,9 +26,7 @@ jobs:
 
   prepare-release:
     needs: check-version
-    runs-on: 
-      group: laos
-      labels: ubuntu-16-cores
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         runtime:
