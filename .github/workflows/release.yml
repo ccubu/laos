@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - '*.*.*'
   workflow_dispatch:
 
 env:
@@ -17,11 +17,18 @@ jobs:
       - id: check_version
         run: |
           VERSION=$(grep -m1 version Cargo.toml | sed -E 's/.*"(.*)".*/\1/')
-          if [ "v$VERSION" == "${{ github.ref_name }}" ]; then
-            echo "Proceeding..."
+          TAG_NAME="${{ github.ref_name }}"
+          
+          if [[ $TAG_NAME == v* ]]; then
+            if [ "v$VERSION" == "$TAG_NAME" ]; then
+              echo "Proceeding with tag $TAG_NAME matching Cargo.toml version v$VERSION."
+            else
+              echo "Version in Cargo.toml ($VERSION) does not match current tag $TAG_NAME. Canceling release..."
+              exit 1
+            fi
           else
-            echo "Version in Cargo.toml ($VERSION) does not match current tag ${{ github.ref_name }}. Canceling release..."
-            exit 1
+            # Si TAG_NAME no comienza con "v", continua sin error.
+            echo "Tag $TAG_NAME does not start with 'v'. Skipping version check and proceeding..."
           fi
 
   prepare-release:
