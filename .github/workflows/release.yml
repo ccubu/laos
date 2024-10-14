@@ -136,7 +136,8 @@ jobs:
         run: |
           echo "Uploading ownership wasm binary for tag ${{ github.ref_name }}"
           gh release upload ${{ github.ref_name }} ${{ steps.srtool_build.outputs.wasm_compressed }}
-          gh release upload ${{ github.ref_name }} ${{ steps.srtool_build_paseo.outputs.wasm_compressed }} --name "laos_paseo_runtime.compact.compressed.wasm"
+          mv ${{ steps.srtool_build_paseo.outputs.wasm_compressed }} laos_paseo_runtime.compact.compressed.wasm
+          gh release upload ${{ github.ref_name }} laos_paseo_runtime.compact.compressed.wasm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
