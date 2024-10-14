@@ -54,10 +54,13 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
-    outputs:
-      wasm: ${{ steps.srtool_build.outputs.wasm }}
-      wasm_compressed: ${{ steps.srtool_build.outputs.wasm_compressed }}
-      runtime_name: ${{ matrix.runtime.name }}
+      - name: Upload Laos Wasm Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: laos-wasm
+          path: |
+            ${{ steps.srtool_build.outputs.wasm }}
+            ${{ steps.srtool_build.outputs.wasm_compressed }}
 
   srtool_build_paseo:
     needs: check-version
@@ -82,37 +85,27 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
-    outputs:
-      wasm: ${{ steps.srtool_build_paseo.outputs.wasm }}
-      wasm_compressed: ${{ steps.srtool_build_paseo.outputs.wasm_compressed }}
-      runtime_name: ${{ matrix.runtime.name }}
-  
+      - name: Upload Paseo Wasm Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: paseo-wasm
+          path: |
+            ${{ steps.srtool_build_paseo.outputs.wasm }}
+            ${{ steps.srtool_build_paseo.outputs.wasm_compressed }}
 
   prepare-release:
     needs: [srtool_build, srtool_build_paseo]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Summary Polkadot
-        id: summary
-        run: |
-          echo '${{ needs.srtool_build.outputs.json }}' | jq . > ${{ needs.srtool_build.outputs.runtime_name }}-srtool-digest.json
-          cat ${{ needs.srtool_build.outputs.runtime_name }}-srtool-digest.json
-          echo "Runtime location: ${{ needs.srtool_build.outputs.wasm }}"
-          RUSTC_VERSION=$(jq '.info.rustc' < ${{ needs.srtool_build.outputs.runtime_name }}-srtool-digest.json)
-          SRTOOL_VERSION=$(jq '.info.generator.version' < ${{ needs.srtool_build.outputs.runtime_name }}-srtool-digest.json)
-          echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
-          echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
-      - name: Summary Paseo
-        id: summary_paseo
-        run: |
-          echo '${{ needs.srtool_build_paseo.outputs.json }}' | jq . > ${{ needs.srtool_build_paseo.outputs.runtime_name }}-srtool-digest.json
-          cat ${{ needs.srtool_build_paseo.outputs.runtime_name }}-srtool-digest.json
-          echo "Runtime location: ${{ needs.srtool_build_paseo.outputs.wasm }}"
-          RUSTC_VERSION=$(jq '.info.rustc' < ${{ needs.srtool_build_paseo.outputs.runtime_name }}-srtool-digest.json)
-          SRTOOL_VERSION=$(jq '.info.generator.version' < ${{ needs.srtool_build_paseo.outputs.runtime_name }}-srtool-digest.json)
-          echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
-          echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
+      - name: Download Laos Wasm Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: laos-wasm
+      - name: Download Paseo Wasm Artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: paseo-wasm
       - name: Install subwasm ${{ env.SUBWASM_VERSION }}
         run: |
           wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
@@ -120,54 +113,40 @@ jobs:
           subwasm --version
       - name: Extract metadata
         run: |
-          subwasm  --json info ${{ needs.srtool_build.outputs.wasm }} > ${{ needs.srtool_build.outputs.runtime_name }}-info.json
-          subwasm info ${{ needs.srtool_build.outputs.wasm }} > ${{ needs.srtool_build.outputs.runtime_name }}-info.txt
-          cat ${{ needs.srtool_build.outputs.runtime_name }}-info.txt
-
-          subwasm  --json info ${{ needs.srtool_build.outputs.wasm_compressed }} > ${{ needs.srtool_build.outputs.runtime_name }}-subwam-info.json
-          subwasm info ${{ needs.srtool_build.outputs.wasm_compressed }} > ${{ needs.srtool_build.outputs.runtime_name }}-subwam-info.txt
-          cat ${{ needs.srtool_build.outputs.runtime_name }}-subwam-info.txt
-        
-          subwasm  --json info ${{ needs.srtool_build_paseo.outputs.wasm }} > ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-info.json
-          subwasm info ${{ needs.srtool_build_paseo.outputs.wasm }} > ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-info.txt
-          cat ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-info.txt
-
-          subwasm  --json info ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} > ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-subwam-info.json
-          subwasm info ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} > ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-subwam-info.txt
-          cat ${{ needs.srtool_build_paseo.outputs.runtime_name }}-paseo-subwam-info.txt   
+          subwasm --json info laos-wasm/laos_runtime.wasm > laos-info.json
+          subwasm --json info paseo-wasm/paseo_runtime.wasm > paseo-info.json
+          
+          # Extraer las versiones de rustc y srtool directamente desde laos-info.json y pasarlas al entorno
+          echo "RUSTC_VERSION=$(jq -r '.info.rustc' < laos-info.json)" >> $GITHUB_ENV
+          echo "SRTOOL_VERSION=$(jq -r '.info.generator.version' < laos-info.json)" >> $GITHUB_ENV
+          
       - name: Update Release Description with subwasm info
         run: |
           gh release view ${{ github.ref_name }} --json body -q .body > description.txt
-              
-          RUSTC_VERSION=$(echo ${{ needs.summary.outputs.rustc_version }} | tr -d '"')
-          SRTOOL_VERSION=${{ needs.summary.outputs.srtool_version }}
           
-          printf "\n\n## ${{ needs.srtool_build_paseo.matrix.runtime.name }} runtime for Polkadot\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
+          # Utilizar las variables de entorno ya establecidas
+          printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
           echo '```' >> description.txt
-          
-          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-subwam-info.txt >> description.txt
-          
+          cat laos-info.json >> description.txt
           echo '```' >> description.txt
 
-            printf "\n\n## ${{ needs.srtool_build_paseo.matrix.runtime.name }} runtime for Paseo\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
+          printf "\n\n## Paseo Runtime\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
+          echo '```' >> description.txt
+          cat paseo-info.json >> description.txt
           echo '```' >> description.txt
           
-          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-subwam-info.txt >> description.txt
-          
-          echo '```' >> description.txt
-        
-        
           gh release edit ${{ github.ref_name }} --notes-file description.txt
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Ownership Wasm Binaries
+          RUSTC_VERSION: ${{ env.RUSTC_VERSION }}
+          SRTOOL_VERSION: ${{ env.SRTOOL_VERSION }}
+      - name: Upload Files to Release
         run: |
-          echo "Uploading ownership wasm binary for tag ${{ github.ref_name }}"
-          gh release upload ${{ github.ref_name }} ${{ needs.srtool_build.outputs.wasm_compressed }}
-          mv ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} laos_paseo_runtime.compact.compressed.wasm
-          gh release upload ${{ github.ref_name }} laos_paseo_runtime.compact.compressed.wasm
+          gh release upload ${{ github.ref_name }} laos-wasm/laos_runtime.wasm --name "laos_runtime.wasm"
+          gh release upload ${{ github.ref_name }} paseo-wasm/paseo_runtime.wasm --name "paseo_runtime.wasm"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   dockerize_and_push:
     needs: prepare-release
