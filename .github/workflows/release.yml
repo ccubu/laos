@@ -102,10 +102,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: laos-wasm
+          path: laos-wasm
       - name: Download Paseo Wasm Artifact
         uses: actions/download-artifact@v3
         with:
           name: paseo-wasm
+          path: paseo-wasm
       - name: List Directory Structure
         run: |
           echo "Listing contents of the workspace directory"
