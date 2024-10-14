@@ -108,14 +108,6 @@ jobs:
         with:
           name: paseo-wasm
           path: paseo-wasm
-      - name: List Directory Structure
-        run: |
-          echo "Listing contents of the workspace directory"
-          ls -R
-          echo "Listing contents of the 'laos-wasm' directory"
-          ls -R laos-wasm
-          echo "Listing contents of the 'paseo-wasm' directory"
-          ls -R paseo-wasm
       - name: Install subwasm ${{ env.SUBWASM_VERSION }}
         run: |
           wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
@@ -128,14 +120,19 @@ jobs:
           subwasm --json info paseo-wasm/laos_runtime.compact.wasm > paseo-info.json
           subwasm info paseo-wasm/laos_runtime.compact.wasm > paseo-info.txt
           
-          echo "RUSTC_VERSION=$(jq -r '.info.rustc' < laos-info.json)" >> $GITHUB_ENV
-          echo "SRTOOL_VERSION=$(jq -r '.info.generator.version' < laos-info.json)" >> $GITHUB_ENV
+          RUSTC_VERSION=$(jq '.info.rustc' < laos-info.json)
+          SRTOOL_VERSION=$(jq '.info.generator.version' < laos-info.json)
+          
+          echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
+          echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
           
       - name: Update Release Description with subwasm info
         run: |
           gh release view ${{ github.ref_name }} --json body -q .body > description.txt
           
-          # Utilizar las variables de entorno ya establecidas
+          RUSTC_VERSION=$(echo ${{ steps.summary.outputs.rustc_version }} | tr -d '"')
+          SRTOOL_VERSION=${{ steps.summary.outputs.srtool_version }}
+          
           printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
           echo '```' >> description.txt
           cat laos-info.txt >> description.txt
