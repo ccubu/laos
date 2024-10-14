@@ -33,7 +33,7 @@ jobs:
     outputs:
       is_release_version: ${{ steps.check_version.outputs.is_release_version }}
 
-  prepare-release:
+  srtool_build:
     needs: check-version
     runs-on: ubuntu-latest
     strategy:
@@ -54,6 +54,20 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
+
+  srtool_build_paseo:
+    needs: check-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        runtime:
+          - { name: "laos", package: "laos-runtime", path: "runtime/laos" }
+    steps:
+      - uses: actions/checkout@v3
+      - uses: ./.github/actions/setup
+      - uses: ./.github/actions/cache
+        with:
+          cache-key: build_and_push
       - name: Srtool build for paseo
         id: srtool_build_paseo
         uses: chevdor/srtool-actions@v0.9.2
@@ -64,24 +78,30 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
+
+  prepare-release:
+    needs: [srtool_build, srtool_build_paseo]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
       - name: Summary Polkadot
         id: summary
         run: |
-          echo '${{ steps.srtool_build.outputs.json }}' | jq . > ${{ matrix.runtime.name }}-srtool-digest.json
-          cat ${{ matrix.runtime.name }}-srtool-digest.json
-          echo "Runtime location: ${{ steps.srtool_build.outputs.wasm }}"
-          RUSTC_VERSION=$(jq '.info.rustc' < ${{ matrix.runtime.name }}-srtool-digest.json)
-          SRTOOL_VERSION=$(jq '.info.generator.version' < ${{ matrix.runtime.name }}-srtool-digest.json)
+          echo '${{ needs.srtool_build.outputs.json }}' | jq . > laos-srtool-digest.json
+          cat laos-srtool-digest.json
+          echo "Runtime location: ${{ needs.srtool_build.outputs.wasm }}"
+          RUSTC_VERSION=$(jq '.info.rustc' < laos-srtool-digest.json)
+          SRTOOL_VERSION=$(jq '.info.generator.version' < laos-srtool-digest.json)
           echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
           echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
       - name: Summary Paseo
         id: summary_paseo
         run: |
-          echo '${{ steps.srtool_build_paseo.outputs.json }}' | jq . > ${{ matrix.runtime.name }}-srtool-digest.json
-          cat ${{ matrix.runtime.name }}-srtool-digest.json
-          echo "Runtime location: ${{ steps.srtool_build_paseo.outputs.wasm }}"
-          RUSTC_VERSION=$(jq '.info.rustc' < ${{ matrix.runtime.name }}-srtool-digest.json)
-          SRTOOL_VERSION=$(jq '.info.generator.version' < ${{ matrix.runtime.name }}-srtool-digest.json)
+          echo '${{ needs.srtool_build_paseo.outputs.json }}' | jq . > laos-paseo-srtool-digest.json
+          cat laos-paseo-srtool-digest.json
+          echo "Runtime location: ${{ needs.srtool_build_paseo.outputs.wasm }}"
+          RUSTC_VERSION=$(jq '.info.rustc' < laos-paseo-srtool-digest.json)
+          SRTOOL_VERSION=$(jq '.info.generator.version' < laos-paseo-srtool-digest.json)
           echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
           echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
       - name: Install subwasm ${{ env.SUBWASM_VERSION }}
@@ -91,40 +111,40 @@ jobs:
           subwasm --version
       - name: Extract metadata
         run: |
-          subwasm  --json info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.runtime.name }}-info.json
-          subwasm info ${{ steps.srtool_build.outputs.wasm }} > ${{ matrix.runtime.name }}-info.txt
-          cat ${{ matrix.runtime.name }}-info.txt
+          subwasm  --json info ${{ needs.srtool_build.outputs.wasm }} > ${{ needs.srtool_build.matrix.runtime.name }}-info.json
+          subwasm info ${{ needs.srtool_build.outputs.wasm }} > ${{ needs.srtool_build.matrix.runtime.name }}-info.txt
+          cat ${{ needs.srtool_build.matrix.runtime.name }}-info.txt
 
-          subwasm  --json info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.runtime.name }}-subwam-info.json
-          subwasm info ${{ steps.srtool_build.outputs.wasm_compressed }} > ${{ matrix.runtime.name }}-subwam-info.txt
-          cat ${{ matrix.runtime.name }}-subwam-info.txt
+          subwasm  --json info ${{ needs.srtool_build.outputs.wasm_compressed }} > ${{ needs.srtool_build.matrix.runtime.name }}-subwam-info.json
+          subwasm info ${{ needs.srtool_build.outputs.wasm_compressed }} > ${{ needs.srtool_build.matrix.runtime.name }}-subwam-info.txt
+          cat ${{ needs.srtool_build.matrix.runtime.name }}-subwam-info.txt
         
-          subwasm  --json info ${{ steps.srtool_build_paseo.outputs.wasm }} > ${{ matrix.runtime.name }}-paseo-info.json
-          subwasm info ${{ steps.srtool_build_paseo.outputs.wasm }} > ${{ matrix.runtime.name }}-paseo-info.txt
-          cat ${{ matrix.runtime.name }}-paseo-info.txt
+          subwasm  --json info ${{ needs.srtool_build_paseo.outputs.wasm }} > ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-info.json
+          subwasm info ${{ needs.srtool_build_paseo.outputs.wasm }} > ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-info.txt
+          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-info.txt
 
-          subwasm  --json info ${{ steps.srtool_build_paseo.outputs.wasm_compressed }} > ${{ matrix.runtime.name }}-paseo-subwam-info.json
-          subwasm info ${{ steps.srtool_build_paseo.outputs.wasm_compressed }} > ${{ matrix.runtime.name }}-paseo-subwam-info.txt
-          cat ${{ matrix.runtime.name }}-paseo-subwam-info.txt
+          subwasm  --json info ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} > ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-subwam-info.json
+          subwasm info ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} > ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-subwam-info.txt
+          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-subwam-info.txt
      
       - name: Update Release Description with subwasm info
         run: |
           gh release view ${{ github.ref_name }} --json body -q .body > description.txt
               
-          RUSTC_VERSION=$(echo ${{ steps.summary.outputs.rustc_version }} | tr -d '"')
-          SRTOOL_VERSION=${{ steps.summary.outputs.srtool_version }}
+          RUSTC_VERSION=$(echo ${{ needs.summary.outputs.rustc_version }} | tr -d '"')
+          SRTOOL_VERSION=${{ needs.summary.outputs.srtool_version }}
           
-          printf "\n\n## ${{ matrix.runtime.name }} runtime for Polkadot\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
+          printf "\n\n## ${{ needs.srtool_build_paseo.matrix.runtime.name }} runtime for Polkadot\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
           echo '```' >> description.txt
           
-          cat ${{ matrix.runtime.name }}-subwam-info.txt >> description.txt
+          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-subwam-info.txt >> description.txt
           
           echo '```' >> description.txt
 
-           printf "\n\n## ${{ matrix.runtime.name }} runtime for Paseo\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
+           printf "\n\n## ${{ needs.srtool_build_paseo.matrix.runtime.name }} runtime for Paseo\nThis runtime was built using %s with srtool %s\n" "$RUSTC_VERSION" "$SRTOOL_VERSION" >> description.txt
           echo '```' >> description.txt
           
-          cat ${{ matrix.runtime.name }}-paseo-subwam-info.txt >> description.txt
+          cat ${{ needs.srtool_build_paseo.matrix.runtime.name }}-paseo-subwam-info.txt >> description.txt
           
           echo '```' >> description.txt
         
@@ -135,8 +155,8 @@ jobs:
       - name: Upload Ownership Wasm Binaries
         run: |
           echo "Uploading ownership wasm binary for tag ${{ github.ref_name }}"
-          gh release upload ${{ github.ref_name }} ${{ steps.srtool_build.outputs.wasm_compressed }}
-          mv ${{ steps.srtool_build_paseo.outputs.wasm_compressed }} laos_paseo_runtime.compact.compressed.wasm
+          gh release upload ${{ github.ref_name }} ${{ needs.srtool_build.outputs.wasm_compressed }}
+          mv ${{ needs.srtool_build_paseo.outputs.wasm_compressed }} laos_paseo_runtime.compact.compressed.wasm
           gh release upload ${{ github.ref_name }} laos_paseo_runtime.compact.compressed.wasm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
