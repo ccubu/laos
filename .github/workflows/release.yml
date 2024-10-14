@@ -106,6 +106,14 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: paseo-wasm
+      - name: List Directory Structure
+        run: |
+          echo "Listing contents of the workspace directory"
+          ls -R
+          echo "Listing contents of the 'laos-wasm' directory"
+          ls -R laos-wasm
+          echo "Listing contents of the 'paseo-wasm' directory"
+          ls -R paseo-wasm
       - name: Install subwasm ${{ env.SUBWASM_VERSION }}
         run: |
           wget https://github.com/chevdor/subwasm/releases/download/v${{ env.SUBWASM_VERSION }}/subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
@@ -113,10 +121,9 @@ jobs:
           subwasm --version
       - name: Extract metadata
         run: |
-          subwasm --json info laos-wasm/laos_runtime.wasm > laos-info.json
-          subwasm --json info paseo-wasm/paseo_runtime.wasm > paseo-info.json
+          subwasm --json info laos-wasm/laos_runtime.compact.wasm > laos-info.json
+          subwasm --json info paseo-wasm/paseo_runtime.compact.wasm > paseo-info.json
           
-          # Extraer las versiones de rustc y srtool directamente desde laos-info.json y pasarlas al entorno
           echo "RUSTC_VERSION=$(jq -r '.info.rustc' < laos-info.json)" >> $GITHUB_ENV
           echo "SRTOOL_VERSION=$(jq -r '.info.generator.version' < laos-info.json)" >> $GITHUB_ENV
           
@@ -142,8 +149,9 @@ jobs:
           SRTOOL_VERSION: ${{ env.SRTOOL_VERSION }}
       - name: Upload Files to Release
         run: |
-          gh release upload ${{ github.ref_name }} laos-wasm/laos_runtime.wasm --name "laos_runtime.wasm"
-          gh release upload ${{ github.ref_name }} paseo-wasm/paseo_runtime.wasm --name "paseo_runtime.wasm"
+          gh release upload ${{ github.ref_name }} laos-wasm/laos_runtime.compact.compressed.wasm
+          mv paseo-wasm/laos_runtime.compact.compressed.wasm paseo-wasm/laos_paseo_runtime.compact.compressed.wasm
+          gh release upload ${{ github.ref_name }} paseo-wasm/laos_paseo_runtime.compact.compressed.wasm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
