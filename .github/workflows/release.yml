@@ -124,7 +124,7 @@ jobs:
       - name: Extract metadata
         run: |
           subwasm --json info laos-wasm/laos_runtime.compact.wasm > laos-info.json
-          subwasm --json info paseo-wasm/paseo_runtime.compact.wasm > paseo-info.json
+          subwasm --json info paseo-wasm/laos_runtime.compact.wasm > paseo-info.json
           
           echo "RUSTC_VERSION=$(jq -r '.info.rustc' < laos-info.json)" >> $GITHUB_ENV
           echo "SRTOOL_VERSION=$(jq -r '.info.generator.version' < laos-info.json)" >> $GITHUB_ENV
