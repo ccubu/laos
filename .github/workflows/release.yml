@@ -124,7 +124,9 @@ jobs:
       - name: Extract metadata
         run: |
           subwasm --json info laos-wasm/laos_runtime.compact.wasm > laos-info.json
+          subwasm info laos-wasm/laos_runtime.compact.wasm > laos-info.txt
           subwasm --json info paseo-wasm/laos_runtime.compact.wasm > paseo-info.json
+          subwasm info paseo-wasm/laos_runtime.compact.wasm > paseo-info.txt
           
           echo "RUSTC_VERSION=$(jq -r '.info.rustc' < laos-info.json)" >> $GITHUB_ENV
           echo "SRTOOL_VERSION=$(jq -r '.info.generator.version' < laos-info.json)" >> $GITHUB_ENV
@@ -136,12 +138,12 @@ jobs:
           # Utilizar las variables de entorno ya establecidas
           printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
           echo '```' >> description.txt
-          cat laos-info.json >> description.txt
+          cat laos-info.txt >> description.txt
           echo '```' >> description.txt
 
           printf "\n\n## Paseo Runtime\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
           echo '```' >> description.txt
-          cat paseo-info.json >> description.txt
+          cat paseo-info.txt >> description.txt
           echo '```' >> description.txt
           
           gh release edit ${{ github.ref_name }} --notes-file description.txt
