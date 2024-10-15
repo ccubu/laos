@@ -114,6 +114,7 @@ jobs:
           sudo dpkg -i subwasm_linux_amd64_v${{ env.SUBWASM_VERSION }}.deb
           subwasm --version
       - name: Extract metadata
+        id: metadata
         run: |
           subwasm --json info laos-wasm/laos_runtime.compact.wasm > laos-info.json
           subwasm info laos-wasm/laos_runtime.compact.wasm > laos-info.txt
@@ -125,13 +126,16 @@ jobs:
           
           echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
           echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
+          echo hola
+          echo $RUSTC_VERSION
+          echo $SRTOOL_VERSION
           
       - name: Update Release Description with subwasm info
         run: |
           gh release view ${{ github.ref_name }} --json body -q .body > description.txt
           
-          RUSTC_VERSION=$(echo ${{ steps.summary.outputs.rustc_version }} | tr -d '"')
-          SRTOOL_VERSION=${{ steps.summary.outputs.srtool_version }}
+          RUSTC_VERSION=$(echo ${{ steps.metadata.outputs.rustc_version }} | tr -d '"')
+          SRTOOL_VERSION=${{ steps.metadata.outputs.srtool_version }}
           
           printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
           echo '```' >> description.txt
