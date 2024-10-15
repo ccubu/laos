@@ -64,7 +64,6 @@ jobs:
           path: |
             ${{ steps.srtool_build.outputs.wasm }}
             ${{ steps.srtool_build.outputs.wasm_compressed }}
-            ${{ steps.srtool_build.outputs.json }}
             srtool-digest.json
 
   srtool_build_paseo:
@@ -100,7 +99,6 @@ jobs:
           path: |
             ${{ steps.srtool_build_paseo.outputs.wasm }}
             ${{ steps.srtool_build_paseo.outputs.wasm_compressed }}
-            ${{ steps.srtool_build_paseo.outputs.json }}
             srtool-digest.json
 
   prepare-release:
