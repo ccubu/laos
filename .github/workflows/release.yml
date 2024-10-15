@@ -61,6 +61,7 @@ jobs:
           path: |
             ${{ steps.srtool_build.outputs.wasm }}
             ${{ steps.srtool_build.outputs.wasm_compressed }}
+            ${{ steps.srtool_build.outputs.json }}
 
   srtool_build_paseo:
     needs: check-version
@@ -92,6 +93,7 @@ jobs:
           path: |
             ${{ steps.srtool_build_paseo.outputs.wasm }}
             ${{ steps.srtool_build_paseo.outputs.wasm_compressed }}
+            ${{ steps.srtool_build_paseo.outputs.json }}
 
   prepare-release:
     needs: [srtool_build, srtool_build_paseo]
@@ -116,10 +118,12 @@ jobs:
       - name: Extract metadata
         id: metadata
         run: |
-          subwasm --json info laos-wasm/laos_runtime.compact.wasm > laos-info.json
-          subwasm info laos-wasm/laos_runtime.compact.wasm > laos-info.txt
-          subwasm --json info paseo-wasm/laos_runtime.compact.wasm > paseo-info.json
-          subwasm info paseo-wasm/laos_runtime.compact.wasm > paseo-info.txt
+          subwasm --json info laos-wasm/laos_runtime.compact.compressed.wasm > laos-info.json
+          subwasm info laos-wasm/laos_runtime.compact.compressed.wasm > laos-info.txt
+          subwasm --json info paseo-wasm/laos_runtime.compact.compressed.wasm > paseo-info.json
+          subwasm info paseo-wasm/laos_runtime.compact.compressed.wasm > paseo-info.txt
+          ls -R paseo-wasm
+          ls -R laos-wasm
           
           RUSTC_VERSION=$(jq '.info.rustc' < laos-info.json)
           SRTOOL_VERSION=$(jq '.info.generator.version' < laos-info.json)
