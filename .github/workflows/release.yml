@@ -54,6 +54,9 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
+      - name: Export output info
+        run: |
+          echo '${{ steps.srtool_build.outputs.json }}' | jq . > srtool-digest.json
       - name: Upload Laos Wasm Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -62,6 +65,7 @@ jobs:
             ${{ steps.srtool_build.outputs.wasm }}
             ${{ steps.srtool_build.outputs.wasm_compressed }}
             ${{ steps.srtool_build.outputs.json }}
+            srtool-digest.json
 
   srtool_build_paseo:
     needs: check-version
@@ -86,6 +90,9 @@ jobs:
           package: ${{ matrix.runtime.package }}
           runtime_dir: ${{ matrix.runtime.path }}
           tag: 1.74.0
+      - name: Export output info
+        run: |
+          echo '${{ steps.srtool_build_paseo.outputs.json }}' | jq . > srtool-digest.json
       - name: Upload Paseo Wasm Artifact
         uses: actions/upload-artifact@v3
         with:
@@ -94,6 +101,7 @@ jobs:
             ${{ steps.srtool_build_paseo.outputs.wasm }}
             ${{ steps.srtool_build_paseo.outputs.wasm_compressed }}
             ${{ steps.srtool_build_paseo.outputs.json }}
+            srtool-digest.json
 
   prepare-release:
     needs: [srtool_build, srtool_build_paseo]
@@ -124,15 +132,16 @@ jobs:
           subwasm info paseo-wasm/laos_runtime.compact.compressed.wasm > paseo-info.txt
           ls -R paseo-wasm
           ls -R laos-wasm
+
+          RUSTC_VERSION_POLKA=$(jq '.info.rustc' < laos-wasm/srtool-digest.json)
+          SRTOOL_VERSION_POLKA=$(jq '.info.generator.version' < laos-wasm/srtool-digest.json)
+          RUSTC_VERSION_PASEO=$(jq '.info.rustc' < paseo-wasm/srtool-digest.json)
+          SRTOOL_VERSION_PASEO=$(jq '.info.generator.version' < paseo-wasm/srtool-digest.json)
           
-          RUSTC_VERSION=$(jq '.info.rustc' < laos-info.json)
-          SRTOOL_VERSION=$(jq '.info.generator.version' < laos-info.json)
-          
-          echo "rustc_version='$RUSTC_VERSION'" >> $GITHUB_OUTPUT
-          echo "srtool_version=$SRTOOL_VERSION" >> $GITHUB_OUTPUT
-          echo hola
-          echo $RUSTC_VERSION
-          echo $SRTOOL_VERSION
+          echo "rustc_version_polka='$RUSTC_VERSION_POLKA'" >> $GITHUB_OUTPUT
+          echo "srtool_version_polka=$SRTOOL_VERSION_POLKA" >> $GITHUB_OUTPUT
+          echo "rustc_version_paseo='$RUSTC_VERSION_PASEO'" >> $GITHUB_OUTPUT
+          echo "srtool_version_paseo=$SRTOOL_VERSION_PASEO" >> $GITHUB_OUTPUT
           
       - name: Update Release Description with subwasm info
         run: |
@@ -141,12 +150,12 @@ jobs:
           RUSTC_VERSION=$(echo ${{ steps.metadata.outputs.rustc_version }} | tr -d '"')
           SRTOOL_VERSION=${{ steps.metadata.outputs.srtool_version }}
           
-          printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
+          printf "\n\n## Laos Runtime for Polkadot\nThis runtime was built using $RUSTC_VERSION_POLKA with srtool $SRTOOL_VERSION_POLKA\n" >> description.txt
           echo '```' >> description.txt
           cat laos-info.txt >> description.txt
           echo '```' >> description.txt
 
-          printf "\n\n## Paseo Runtime\nThis runtime was built using $RUSTC_VERSION with srtool $SRTOOL_VERSION\n" >> description.txt
+          printf "\n\n## Paseo Runtime\nThis runtime was built using $RUSTC_VERSION_PASEO with srtool $SRTOOL_VERSION_PASEO\n" >> description.txt
           echo '```' >> description.txt
           cat paseo-info.txt >> description.txt
           echo '```' >> description.txt
