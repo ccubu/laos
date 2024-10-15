@@ -124,12 +124,12 @@ jobs:
       - name: Extract metadata
         id: metadata
         run: |
+          ls -R paseo-wasm
+          ls -R laos-wasm
           subwasm --json info laos-wasm/laos_runtime.compact.compressed.wasm > laos-info.json
           subwasm info laos-wasm/laos_runtime.compact.compressed.wasm > laos-info.txt
           subwasm --json info paseo-wasm/laos_runtime.compact.compressed.wasm > paseo-info.json
           subwasm info paseo-wasm/laos_runtime.compact.compressed.wasm > paseo-info.txt
-          ls -R paseo-wasm
-          ls -R laos-wasm
 
           RUSTC_VERSION_POLKA=$(jq '.info.rustc' < laos-wasm/srtool-digest.json)
           SRTOOL_VERSION_POLKA=$(jq '.info.generator.version' < laos-wasm/srtool-digest.json)
